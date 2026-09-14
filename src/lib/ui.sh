@@ -5,7 +5,6 @@
 # Messages are Russian on purpose: the interface language of Volok is Russian,
 # the code and comments are English.
 
-UI_COLOR=0
 UI_RESET=''
 UI_BOLD=''
 UI_DIM=''
@@ -19,7 +18,6 @@ UI_PROGRESS_ACTIVE=0
 ui_init() {
   local plain="${1:-0}"
   if [[ "$plain" == "0" && -t 1 && -z "${NO_COLOR:-}" && "${TERM:-dumb}" != "dumb" ]]; then
-    UI_COLOR=1
     UI_RESET=$'\033[0m'
     UI_BOLD=$'\033[1m'
     UI_DIM=$'\033[2m'
@@ -28,7 +26,6 @@ ui_init() {
     UI_YELLOW=$'\033[33m'
     UI_BLUE=$'\033[34m'
   else
-    UI_COLOR=0
     UI_RESET=''
     UI_BOLD=''
     UI_DIM=''
@@ -138,6 +135,26 @@ ui_human_size() {
   printf '%d,%d %s' "$whole" "$frac" "${units[idx]}"
 }
 
+# ui_plural <count> <one> <few> <many> - Russian number agreement,
+# e.g. ui_plural 21 ошибка ошибки ошибок -> ошибка.
+ui_plural() {
+  local count="$1"
+  local one="$2"
+  local few="$3"
+  local many="$4"
+  local mod100=$(( count % 100 ))
+  local mod10=$(( count % 10 ))
+  if (( mod100 >= 11 && mod100 <= 14 )); then
+    printf '%s' "$many"
+  elif (( mod10 == 1 )); then
+    printf '%s' "$one"
+  elif (( mod10 >= 2 && mod10 <= 4 )); then
+    printf '%s' "$few"
+  else
+    printf '%s' "$many"
+  fi
+}
+
 # ui_truncate <text> <max> - shorten from the left, paths keep their tail.
 ui_truncate() {
   local text="$1"
@@ -176,13 +193,14 @@ ui_progress() {
   local text="$3"
   local prefix width avail
   printf -v prefix '[ %*d / %d ] ' "${#total}" "$current" "$total"
-  width="$(ui_term_width)"
-  avail=$(( width - ${#prefix} - 1 ))
-  if (( avail < 12 )); then
-    avail=12
-  fi
-  text="$(ui_truncate "$text" "$avail")"
+  # Only a terminal needs the line to fit; a redirected log keeps it whole.
   if ui_is_tty; then
+    width="$(ui_term_width)"
+    avail=$(( width - ${#prefix} - 1 ))
+    if (( avail < 12 )); then
+      avail=12
+    fi
+    text="$(ui_truncate "$text" "$avail")"
     printf '\r\033[K%s%s' "$prefix" "$text"
     UI_PROGRESS_ACTIVE=1
   else
@@ -204,15 +222,14 @@ ui_progress_done() {
 ui_status() {
   local text="$1"
   local width
-  width="$(ui_term_width)"
-  text="$(ui_truncate "$text" "$(( width - 1 ))")"
+  # Only a terminal needs the line to fit; a redirected log keeps it whole.
   if ui_is_tty; then
-    printf '
-[K%s' "$text"
+    width="$(ui_term_width)"
+    text="$(ui_truncate "$text" "$(( width - 1 ))")"
+    printf '\r\033[K%s' "$text"
     UI_PROGRESS_ACTIVE=1
   else
-    printf '%s
-' "$text"
+    printf '%s\n' "$text"
   fi
 }
 

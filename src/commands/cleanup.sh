@@ -82,12 +82,12 @@ cleanup_delete_all() {
   local root="$2"
   local listing="$HTTP_TMPDIR/cleanup-listing"
   local entries=()
-  local entry_size entry_type entry_path index=0 total
+  local entry_type entry_path index=0 total
   if ! provider_call "$slot" list_dir "$root" > "$listing"; then
     ui_err "Не удалось прочитать «$root»: $PROVIDER_STATUS $PROVIDER_MESSAGE"
     return 1
   fi
-  while IFS=$'\t' read -r entry_type entry_path entry_size || [[ -n "$entry_type" ]]; do
+  while IFS=$'\t' read -r entry_type entry_path _ || [[ -n "$entry_type" ]]; do
     if [[ -z "$entry_type" ]]; then
       continue
     fi
@@ -98,7 +98,7 @@ cleanup_delete_all() {
     ui_info 'Исходная папка уже пуста.'
     return 0
   fi
-  ui_info "Удаляю содержимое «$root»: $total объектов верхнего уровня."
+  ui_info "Удаляю содержимое «$root»: $total $(ui_plural "$total" объект объекта объектов) верхнего уровня."
   for entry_path in ${entries[@]+"${entries[@]}"}; do
     index=$(( index + 1 ))
     ui_progress "$index" "$total" "$entry_path"
@@ -147,7 +147,7 @@ cleanup_run() {
       ;;
     3)
       if (( errors > 0 )); then
-        ui_err "Вариант 3 недоступен: в журнале $errors ошибок."
+        ui_err "Вариант 3 недоступен: в журнале $errors $(ui_plural "$errors" ошибка ошибки ошибок)."
         ui_hint 'Полное удаление разрешено только после запуска без единой ошибки,'
         ui_hint 'иначе можно стереть то, что так и не доехало до приёмника.'
         ui_hint "Ошибки: $STATE_ERRORS"

@@ -70,10 +70,3 @@ deps_check_binaries() {
   done
   return 1
 }
-
-# deps_check - full preflight: interpreter first, then binaries.
-deps_check() {
-  deps_check_bash || return 1
-  deps_check_binaries || return 1
-  return 0
-}

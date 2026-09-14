@@ -43,15 +43,16 @@ tsv_unescape() {
   local len=${#text}
   local idx=0
   local char next
+  local backslash=$'\\'
   while (( idx < len )); do
     char="${text:idx:1}"
-    if [[ "$char" == '\' ]] && (( idx + 1 < len )); then
+    if [[ "$char" == "$backslash" ]] && (( idx + 1 < len )); then
       next="${text:idx+1:1}"
       case "$next" in
         t) out+=$'\t' ;;
         n) out+=$'\n' ;;
         r) out+=$'\r' ;;
-        '\') out+='\' ;;
+        "$backslash") out+="$backslash" ;;
         *) out+="$char$next" ;;
       esac
       idx=$(( idx + 2 ))
@@ -170,8 +171,8 @@ state_load_done() {
   if [[ ! -f "$STATE_MANIFEST" ]]; then
     return 0
   fi
-  local status path rest
-  while IFS=$'\t' read -r status path rest || [[ -n "$status" ]]; do
+  local status path
+  while IFS=$'\t' read -r status path _ || [[ -n "$status" ]]; do
     if [[ "$status" == "copied" && -n "$path" ]]; then
       STATE_DONE["$(tsv_unescape "$path")"]=1
     fi
@@ -184,30 +185,13 @@ state_is_done() {
   [[ -n "${STATE_DONE[$1]:-}" ]]
 }
 
-# state_count <status> - how many manifest rows carry this status.
-state_count() {
-  local status="$1"
-  local count=0
-  local first rest
-  if [[ ! -f "$STATE_MANIFEST" ]]; then
-    printf '0'
-    return 0
-  fi
-  while IFS=$'\t' read -r first rest || [[ -n "$first" ]]; do
-    if [[ "$first" == "$status" ]]; then
-      count=$(( count + 1 ))
-    fi
-  done < "$STATE_MANIFEST"
-  printf '%s' "$count"
-}
-
 # state_copied_paths - source paths marked copied, one per line, escaped.
 state_copied_paths() {
   if [[ ! -f "$STATE_MANIFEST" ]]; then
     return 0
   fi
-  local status path rest
-  while IFS=$'\t' read -r status path rest || [[ -n "$status" ]]; do
+  local status path
+  while IFS=$'\t' read -r status path _ || [[ -n "$status" ]]; do
     if [[ "$status" == "copied" && -n "$path" ]]; then
       printf '%s\n' "$path"
     fi

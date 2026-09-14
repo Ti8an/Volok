@@ -26,10 +26,9 @@ wizard_load_config() {
   if [[ ! -f "$file" ]]; then
     return 0
   fi
-  local perms rest
-  perms="$(ls -ld -- "$file" 2>/dev/null | cut -c1-10 || printf '')"
-  rest="${perms:4:6}"
-  if [[ "$rest" == *r* || "$rest" == *w* ]]; then
+  local shared
+  shared="$(find "$file" -type f \( -perm -g+r -o -perm -o+r \) -print 2>/dev/null || printf '')"
+  if [[ -n "$shared" ]]; then
     ui_warn "Файл $file доступен не только вам. Выполните: chmod 600 «$file»"
   fi
   local line key value
@@ -136,6 +135,7 @@ wizard_ask_src_path() {
     fi
     if provider_call src exists "$path"; then
       VOLOK_SRC_PATH="$(provider_normalize_path src "$path")"
+      ui_info "Исходная папка: $VOLOK_SRC_PATH"
       return 0
     fi
     if [[ "$PROVIDER_STATUS" != "0" ]]; then
@@ -160,6 +160,7 @@ wizard_ask_dst_path() {
     path="$(provider_normalize_path dst "$path")"
     if provider_call dst exists "$path"; then
       VOLOK_DST_PATH="$path"
+      ui_info "Целевая папка: $VOLOK_DST_PATH"
       return 0
     fi
     if [[ "$PROVIDER_STATUS" != "0" ]]; then

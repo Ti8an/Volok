@@ -154,14 +154,12 @@ provider_call() {
 
 # provider_has <slot> <operation> - whether an optional operation exists.
 provider_has() {
-  local slot="$1"
-  local op="$2"
-  local var="PROVIDER_OF_${slot}"
-  local name="${!var:-}"
+  local name
+  name="$(provider_of "$1")"
   if [[ -z "$name" ]]; then
     return 1
   fi
-  declare -F "${name}_${op}" >/dev/null 2>&1
+  declare -F "${name}_${2}" >/dev/null 2>&1
 }
 
 # provider_normalize_path <slot> <path> - absolute path in provider form.

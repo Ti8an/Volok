@@ -82,6 +82,7 @@ VOLOK_ALLOW_FALLBACK=0
 VOLOK_ASSUME_YES=0
 VOLOK_NO_COLOR=0
 VOLOK_EXIT_CODE=0
+VOLOK_RC=0
 
 volok_usage() {
   cat <<'USAGE'
@@ -209,26 +210,6 @@ volok_die() {
   exit "$code"
 }
 
-# volok_on_exit - revoke every temporary publication, then wipe the scratch.
-volok_on_exit() {
-  local code=$?
-  set +e
-  ui_progress_done
-  if declare -F provider_cleanup_shares > /dev/null 2>&1; then
-    provider_cleanup_shares
-  fi
-  http_cleanup
-  exit "$code"
-}
-
-# volok_on_signal - Ctrl+C is a normal way to stop, exit code 4.
-volok_on_signal() {
-  ui_progress_done
-  ui_warn 'Прервано пользователем.'
-  log_warn 'interrupted by user'
-  exit "$EX_ABORT"
-}
-
 # volok_report - the summary required after every copy.
 volok_report() {
   ui_title 'Итог копирования'
@@ -238,8 +219,10 @@ volok_report() {
   if (( COPY_ABORTED )); then
     ui_err 'Копирование остановлено досрочно: на целевом Диске кончилось место.'
   fi
-  if (( COPY_FAILED > 0 )); then
-    ui_say "Журнал ошибок: $STATE_ERRORS"
+  local errors
+  errors="$(state_error_count)"
+  if (( errors > 0 )); then
+    ui_say "Журнал ошибок: $STATE_ERRORS ($errors $(ui_plural "$errors" запись записи записей))"
   else
     ui_say "Журнал ошибок: $STATE_ERRORS (пуст)"
   fi
@@ -262,14 +245,26 @@ volok_main() {
   if [[ -n "$VOLOK_RESUME_ID" ]] && ! state_run_exists "$VOLOK_RESUME_ID"; then
     ui_err "Запуск «$VOLOK_RESUME_ID» не найден."
     ui_hint "Каталог запусков: ${XDG_STATE_HOME:-$HOME/.local/state}/volok"
+    local known=()
+    mapfile -t known < <(state_list_runs)
+    if (( ${#known[@]} > 0 )); then
+      ui_hint 'Известные запуски:'
+      local run_id
+      for run_id in "${known[@]}"; do
+        ui_hint "  $run_id"
+      done
+    fi
     exit "$EX_ENV"
   fi
 
   http_init
   state_init "$VOLOK_RESUME_ID"
   log_init "$STATE_RUN_DIR/volok.log"
-  trap volok_on_exit EXIT
-  trap volok_on_signal INT TERM
+  # Cleanup is wired straight to the modules that own each resource: the
+  # publications must be revoked and the token files wiped even if the process
+  # dies here. VOLOK_RC keeps the exit code the script was leaving with.
+  trap 'VOLOK_RC=$?; set +e; ui_progress_done; provider_cleanup_shares; http_cleanup; exit "$VOLOK_RC"' EXIT
+  trap 'ui_progress_done; ui_warn "Прервано пользователем."; log_warn "interrupted by user"; exit "$EX_ABORT"' INT TERM
 
   log_info "volok $VOLOK_VERSION run=$STATE_RUN_ID dry_run=$VOLOK_DRY_RUN"
   if (( VOLOK_DRY_RUN )); then
