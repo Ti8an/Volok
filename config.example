@@ -1,0 +1,34 @@
+# Volok - файл конфигурации.
+#
+# Положите его в ~/.config/volok/config и обязательно ограничьте права:
+#
+#   install -D -m 600 config.example ~/.config/volok/config
+#
+# Формат: КЛЮЧ=значение, по одному в строке. Файл не исполняется и не
+# подключается через source - Volok разбирает его сам и принимает только
+# известные ключи. Значения можно брать в кавычки.
+#
+# Переменные окружения YANDEX_TOKEN_SRC и YANDEX_TOKEN_DST имеют приоритет
+# над этим файлом, а флаги командной строки - над обоими.
+
+# OAuth-токен аккаунта, ОТКУДА копируем.
+# Получить: https://oauth.yandex.ru/ , права cloud_api:disk.read,
+# cloud_api:disk.write, cloud_api:disk.app_folder
+YANDEX_TOKEN_SRC=""
+
+# OAuth-токен аккаунта, КУДА копируем.
+YANDEX_TOKEN_DST=""
+
+# Папки по умолчанию. Пустое значение - Volok спросит при запуске.
+#VOLOK_SRC_PATH="/"
+#VOLOK_DST_PATH="/"
+
+# Что делать, если файл уже есть в приёмнике: skip, overwrite, rename.
+#VOLOK_ON_CONFLICT="skip"
+
+# Уровень журнала: debug, info, warn, error.
+#VOLOK_LOG_LEVEL="info"
+
+# Разрешить резервный путь download/upload, если серверное копирование
+# отказало. Расходует ваш трафик, поэтому по умолчанию выключено.
+#VOLOK_ALLOW_FALLBACK=0
